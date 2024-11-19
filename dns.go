@@ -3,6 +3,7 @@ package xk6_dns
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/miekg/dns"
@@ -10,7 +11,6 @@ import (
 
 type K6DNS struct {
 	client *dns.Client
-
 	Version string
 }
 
@@ -48,7 +48,7 @@ func (k *K6DNS) SetWriteTimeout(s string) error {
 	return nil
 }
 
-func (k *K6DNS) Resolve(ctx context.Context, addr, query, qtypeStr string) (string, error) {
+func (k *K6DNS) Resolve(ctx context.Context, addr, query, qtypeStr, protocol string) (string, error) {
 	qtype, ok := dns.StringToType[qtypeStr]
 	if !ok {
 		return "", fmt.Errorf("unknown query type: %s", qtypeStr)
@@ -65,16 +65,26 @@ func (k *K6DNS) Resolve(ctx context.Context, addr, query, qtypeStr string) (stri
 	}
 
 	reportDial(ctx)
-	conn, err := NewK6UDPConn(addr)
+
+	var conn net.Conn
+	var err error
+	switch protocol {
+	case "udp":
+		conn, err = NewK6UDPConn(addr)
+		reportConnection(ctx, "udp")
+	case "tcp":
+		conn, err = net.Dial("tcp", addr)
+		reportConnection(ctx, "tcp")
+	default:
+		return "", fmt.Errorf("unsupported protocol: %s", protocol)
+	}
+
 	if err != nil {
 		reportDialError(ctx)
+		reportConnectionError(ctx, protocol)
 		return err.Error(), nil
 	}
-	defer func() {
-		conn.Close()
-		reportDataReceived(ctx, float64(conn.rxBytes))
-		reportDataSent(ctx, float64(conn.txBytes))
-	}()
+	defer conn.Close()
 
 	reportRequest(ctx)
 	resp, rtt, err := k.client.ExchangeWithConn(msg, &dns.Conn{Conn: conn})
@@ -83,6 +93,17 @@ func (k *K6DNS) Resolve(ctx context.Context, addr, query, qtypeStr string) (stri
 		return err.Error(), nil
 	}
 	reportResponseTime(ctx, rtt)
+
+	// Capture data sent and received
+	switch c := conn.(type) {
+	case *k6UDPConn:
+		reportDataSent(ctx, float64(c.GetTXBytes()), "udp")
+		reportDataReceived(ctx, float64(c.GetRXBytes()), "udp")
+	case net.Conn:
+		// Estimate for TCP data
+		reportDataSent(ctx, float64(len(msg.Question)*100), "tcp")
+		reportDataReceived(ctx, float64(len(resp.Question)*100), "tcp")
+	}
 
 	return resp.String(), nil
 }
