@@ -1,4 +1,4 @@
-module github.com/yjuba/xk6-dns
+module github.com/andranikasd/xk6-dns
 
 go 1.17
 
