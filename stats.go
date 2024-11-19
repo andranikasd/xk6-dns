@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"go.k6.io/k6/lib"
-	"go.k6.io/k6/lib/metrics"
 	"go.k6.io/k6/stats"
 )
 
@@ -19,13 +18,13 @@ var (
 	ConnectionTCPError = stats.New("dns.connection.tcp.error", stats.Counter)
 	ConnectionUDPError = stats.New("dns.connection.udp.error", stats.Counter)
 
-	RequestCount       = stats.New("dns.request.count", stats.Counter)
-	RequestError       = stats.New("dns.request.error", stats.Counter)
-	ResponseTime       = stats.New("dns.response.time", stats.Trend, stats.Time)
-	DataTCPSent        = stats.New("dns.data.tcp.sent", stats.Counter)
-	DataTCPReceived    = stats.New("dns.data.tcp.received", stats.Counter)
-	DataUDPSent        = stats.New("dns.data.udp.sent", stats.Counter)
-	DataUDPReceived    = stats.New("dns.data.udp.received", stats.Counter)
+	RequestCount    = stats.New("dns.request.count", stats.Counter)
+	RequestError    = stats.New("dns.request.error", stats.Counter)
+	ResponseTime    = stats.New("dns.response.time", stats.Trend, stats.Time)
+	DataTCPSent     = stats.New("dns.data.tcp.sent", stats.Counter)
+	DataTCPReceived = stats.New("dns.data.tcp.received", stats.Counter)
+	DataUDPSent     = stats.New("dns.data.udp.sent", stats.Counter)
+	DataUDPReceived = stats.New("dns.data.udp.received", stats.Counter)
 )
 
 func reportDial(ctx context.Context) error {
