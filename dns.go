@@ -10,7 +10,7 @@ import (
 )
 
 type K6DNS struct {
-	client *dns.Client
+	client  *dns.Client
 	Version string
 }
 
@@ -49,23 +49,25 @@ func (k *K6DNS) SetWriteTimeout(s string) error {
 }
 
 func (k *K6DNS) Resolve(ctx context.Context, addr, query, qtypeStr, protocol string) (string, error) {
+	// Validate query type
 	qtype, ok := dns.StringToType[qtypeStr]
 	if !ok {
 		return "", fmt.Errorf("unknown query type: %s", qtypeStr)
 	}
 
+	// Construct the DNS request message
 	msg := &dns.Msg{}
-	msg.Id = dns.Id()
-	msg.RecursionDesired = true
-	msg.Question = make([]dns.Question, 1)
-	msg.Question[0] = dns.Question{
-		Name:   query,
+	msg.Id = dns.Id()                  // Unique query ID for every request
+	msg.RecursionDesired = true        // Allow recursive resolution
+	msg.Question = []dns.Question{{
+		Name:   dns.Fqdn(query),       // Ensure query is a fully qualified domain name
 		Qtype:  qtype,
 		Qclass: dns.ClassINET,
-	}
+	}}
 
 	reportDial(ctx)
 
+	// Establish a connection based on the specified protocol
 	var conn net.Conn
 	var err error
 	switch protocol {
@@ -87,6 +89,8 @@ func (k *K6DNS) Resolve(ctx context.Context, addr, query, qtypeStr, protocol str
 	defer conn.Close()
 
 	reportRequest(ctx)
+
+	// Send the DNS query
 	resp, rtt, err := k.client.ExchangeWithConn(msg, &dns.Conn{Conn: conn})
 	if err != nil {
 		reportRequestError(ctx)
